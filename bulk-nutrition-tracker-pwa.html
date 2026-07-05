@@ -143,6 +143,7 @@
 
   .settings-row{ display:grid; grid-template-columns:1fr 1fr; gap:8px; align-items:center; margin-top:10px; }
   .settings-row label{ font-size:11px; color:var(--muted); font-family:'JetBrains Mono'; grid-column:1 / -1; margin-bottom:-4px; }
+  .settings-row .unit-caption{ grid-column:1 / -1; display:flex; justify-content:space-between; font-size:10px; color:var(--muted); font-family:'JetBrains Mono'; margin-bottom:-4px; padding:0 2px; }
   .settings-row input{
     background:var(--panel2); border:1px solid var(--line); color:var(--text);
     border-radius:8px; padding:11px; width:100%; font-family:'JetBrains Mono'; font-size:15px; min-height:42px;
@@ -260,25 +261,30 @@
     <h2>目標設定</h2>
     <div class="settings-row">
       <label>在宅・トレなし</label>
+      <div class="unit-caption"><span>目標kcal</span><span>目標たんぱく質(g)</span></div>
       <input type="number" id="tgtHomeRestKcal" placeholder="kcal">
       <input type="number" id="tgtHomeRestP" placeholder="P(g)">
     </div>
     <div class="settings-row">
       <label>在宅・トレあり</label>
+      <div class="unit-caption"><span>目標kcal</span><span>目標たんぱく質(g)</span></div>
       <input type="number" id="tgtHomeTrainKcal" placeholder="kcal">
       <input type="number" id="tgtHomeTrainP" placeholder="P(g)">
     </div>
     <div class="settings-row">
       <label>出社・トレなし</label>
+      <div class="unit-caption"><span>目標kcal</span><span>目標たんぱく質(g)</span></div>
       <input type="number" id="tgtWorkRestKcal" placeholder="kcal">
       <input type="number" id="tgtWorkRestP" placeholder="P(g)">
     </div>
     <div class="settings-row">
       <label>出社・トレあり</label>
+      <div class="unit-caption"><span>目標kcal</span><span>目標たんぱく質(g)</span></div>
       <input type="number" id="tgtWorkTrainKcal" placeholder="kcal">
       <input type="number" id="tgtWorkTrainP" placeholder="P(g)">
     </div>
     <button id="saveSettings" style="background:var(--carb); border:none; color:#1b1d1e; font-family:'Oswald'; font-weight:600; border-radius:8px; cursor:pointer;">保存</button>
+    <button id="restorePresets" style="margin-top:10px; background:var(--panel2); border:1px solid var(--line); color:var(--muted); font-family:'Oswald'; font-weight:600; border-radius:8px; padding:10px; cursor:pointer; width:100%;">削除した定番メニューを復元</button>
     <div class="note">
       栄養価は自炊メニューの材料から算出した推定値です。実際の商品・調理方法により誤差が出ます。<br>
       目標kcalは「在宅/出社の歩数差」「トレーニング(自転車往復+筋トレ)の有無」を踏まえた推定値で、年齢は30歳と仮定しています。実際の年齢が異なる場合や体重の変化ペースを見て、上の欄で数値を調整してください。<br>
@@ -339,6 +345,7 @@ let config = {
 let mealLog = {};
 let weightLog = [];
 let customPresets = [];
+let deletedPresetIds = [];
 let loc = 'home';
 let train = false;
 
@@ -351,6 +358,7 @@ async function loadAll(){
   try{ const v = localStorage.getItem('meal-log'); if(v) mealLog = JSON.parse(v); }catch(e){}
   try{ const v = localStorage.getItem('weight-log'); if(v) weightLog = JSON.parse(v); }catch(e){}
   try{ const v = localStorage.getItem('custom-presets'); if(v) customPresets = JSON.parse(v); }catch(e){}
+  try{ const v = localStorage.getItem('deleted-presets'); if(v) deletedPresetIds = JSON.parse(v); }catch(e){}
   let saved = null;
   try{ const v = localStorage.getItem('day-flags-' + todayStr()); if(v) saved = JSON.parse(v); }catch(e){}
   if(saved){
@@ -365,23 +373,30 @@ async function saveMealLog(){ try{ localStorage.setItem('meal-log', JSON.stringi
 async function saveWeightLog(){ try{ localStorage.setItem('weight-log', JSON.stringify(weightLog)); }catch(e){} }
 async function saveDayFlags(){ try{ localStorage.setItem('day-flags-' + todayStr(), JSON.stringify({loc, train})); }catch(e){} }
 async function saveCustomPresets(){ try{ localStorage.setItem('custom-presets', JSON.stringify(customPresets)); }catch(e){} }
+async function saveDeletedPresets(){ try{ localStorage.setItem('deleted-presets', JSON.stringify(deletedPresetIds)); }catch(e){} }
 
 function renderPresets(){
   const grid = document.getElementById('presetGrid');
   grid.innerHTML = '';
-  const all = [...PRESETS, ...customPresets];
+  const all = [...PRESETS.filter(p=>!deletedPresetIds.includes(p.id)), ...customPresets];
   all.forEach(p=>{
     const isCustom = customPresets.some(cp=>cp.id===p.id);
     const b = document.createElement('button');
     b.className = 'preset-btn';
     b.style.position = 'relative';
     b.innerHTML = `<div class="name">${p.name}</div><div class="kcal">${p.kcal} kcal / P${p.p} F${p.f} C${p.c}</div>` +
-      (isCustom ? `<span data-del="${p.id}" style="position:absolute; top:8px; right:10px; color:var(--over); font-size:16px;">×</span>` : '');
+      `<span data-del="${p.id}" style="position:absolute; top:8px; right:10px; color:var(--over); font-size:16px; padding:4px 8px;">×</span>`;
     b.onclick = (ev) => {
       if(ev.target && ev.target.dataset && ev.target.dataset.del){
         ev.stopPropagation();
-        customPresets = customPresets.filter(cp=>cp.id!==ev.target.dataset.del);
-        saveCustomPresets();
+        if(!confirm(`「${p.name}」をメニュー一覧から削除しますか?`)) return;
+        if(isCustom){
+          customPresets = customPresets.filter(cp=>cp.id!==ev.target.dataset.del);
+          saveCustomPresets();
+        } else {
+          deletedPresetIds.push(p.id);
+          saveDeletedPresets();
+        }
         renderPresets();
         return;
       }
@@ -686,6 +701,13 @@ document.getElementById('saveSettings').onclick = async () => {
   renderToday();
 };
 
+document.getElementById('restorePresets').onclick = async () => {
+  if(!confirm('削除した定番メニューをすべて復元しますか?')) return;
+  deletedPresetIds = [];
+  await saveDeletedPresets();
+  renderPresets();
+};
+
 function downloadFile(filename, content, mime){
   const blob = new Blob([content], {type: mime});
   const url = URL.createObjectURL(blob);
@@ -696,7 +718,7 @@ function downloadFile(filename, content, mime){
 }
 
 document.getElementById('exportJson').onclick = () => {
-  const data = { exportedAt: new Date().toISOString(), config, mealLog, weightLog, customPresets };
+  const data = { exportedAt: new Date().toISOString(), config, mealLog, weightLog, customPresets, deletedPresetIds };
   downloadFile('tracker-data-' + todayStr() + '.json', JSON.stringify(data, null, 2), 'application/json');
 };
 
