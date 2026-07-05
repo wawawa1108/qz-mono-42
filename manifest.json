@@ -1,0 +1,13 @@
+{
+  "name": "増量期 食事トラッカー",
+  "short_name": "食事トラッカー",
+  "start_url": "./bulk-nutrition-tracker-pwa.html",
+  "display": "standalone",
+  "background_color": "#1b1d1e",
+  "theme_color": "#1b1d1e",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
