@@ -96,6 +96,20 @@
   .preset-btn .name{ font-weight:600; }
   .preset-btn .kcal{ font-family:'JetBrains Mono'; color:var(--energy); font-size:12px; margin-top:4px; }
 
+  .gram-card{ background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .gram-card .name{ font-weight:600; font-size:14px; }
+  .gram-row{ display:flex; align-items:center; justify-content:center; gap:10px; margin:10px 0; }
+  .gram-row button{
+    width:40px; height:40px; border-radius:8px; border:1px solid var(--line);
+    background:var(--panel); color:var(--text); font-family:'JetBrains Mono'; font-size:16px; cursor:pointer;
+  }
+  .gram-row .gval{ font-family:'JetBrains Mono'; font-size:16px; min-width:56px; text-align:center; }
+  .gram-card .kcal{ font-family:'JetBrains Mono'; color:var(--energy); font-size:12px; text-align:center; margin-bottom:10px; }
+  .gram-card .gadd{
+    width:100%; background:var(--energy); border:none; color:#1b1d1e; font-family:'Oswald'; font-weight:600;
+    border-radius:8px; padding:11px; cursor:pointer; min-height:42px; font-size:13px;
+  }
+
   .custom-form{ display:grid; grid-template-columns:1fr; gap:8px; margin-top:12px; }
   .custom-form .num-row{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
   .custom-form input{
@@ -189,6 +203,11 @@
   <div class="panel">
     <h2>作り置き・定番メニューから追加 <small>タップで今日のログに追加</small></h2>
     <div class="preset-grid" id="presetGrid"></div>
+
+    <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
+      <h2 style="margin-bottom:10px;">量を指定して追加(10g単位)</h2>
+      <div class="preset-grid" id="gramItemsGrid"></div>
+    </div>
 
     <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
       <h2 style="margin-bottom:10px;">新しい定番メニューを追加</h2>
@@ -314,6 +333,16 @@ const PRESETS = [
   { id:'kashipan',          name:'菓子パン',                 kcal:400, p:7.0,  f:15.0, c:55.0 },
   { id:'protein-rice',      name:'白米・プロテイン',          kcal:447, p:41.6, f:3.0,  c:63.7 },
   { id:'snack',             name:'間食(お菓子)',             kcal:200, p:2.0,  f:8.0,  c:30.0 },
+  { id:'natto',             name:'納豆(1パック)',            kcal:100, p:8.3,  f:5.0,  c:6.1 },
+  { id:'tamago-nama',       name:'卵(2個)',                  kcal:205, p:16.7, f:14.0, c:0.4 },
+  { id:'nitamago',          name:'煮卵(1個)',                kcal:90,  p:7.4,  f:6.2,  c:1.0 },
+];
+
+// 量を10g単位で調整できるおかず(100gあたりの栄養価)
+const GRAM_ITEMS = [
+  { id:'soboro-okazu', name:'鶏そぼろ',           base:80,  per100:{kcal:244.5, p:22.8, f:15.6, c:0.63} },
+  { id:'tomato-okazu', name:'鶏と豆のトマト煮込み', base:180, per100:{kcal:118.8, p:9.54, f:5.53, c:7.21} },
+  { id:'kinpira-okazu', name:'きんぴらごぼう',      base:30,  per100:{kcal:86.7,  p:2.16, f:1.96, c:12.84} },
 ];
 
 const MONTHLY_WEIGHT = [
@@ -374,6 +403,53 @@ async function saveWeightLog(){ try{ localStorage.setItem('weight-log', JSON.str
 async function saveDayFlags(){ try{ localStorage.setItem('day-flags-' + todayStr(), JSON.stringify({loc, train})); }catch(e){} }
 async function saveCustomPresets(){ try{ localStorage.setItem('custom-presets', JSON.stringify(customPresets)); }catch(e){} }
 async function saveDeletedPresets(){ try{ localStorage.setItem('deleted-presets', JSON.stringify(deletedPresetIds)); }catch(e){} }
+
+let gramState = {};
+
+function renderGramItems(){
+  const grid = document.getElementById('gramItemsGrid');
+  grid.innerHTML = '';
+  GRAM_ITEMS.forEach(item=>{
+    if(gramState[item.id] == null) gramState[item.id] = item.base;
+    const g = gramState[item.id];
+    const kcal = item.per100.kcal * g/100;
+    const p = item.per100.p * g/100;
+    const f = item.per100.f * g/100;
+    const c = item.per100.c * g/100;
+    const card = document.createElement('div');
+    card.className = 'gram-card';
+    card.innerHTML = `
+      <div class="name">${item.name}</div>
+      <div class="gram-row">
+        <button class="gminus">−10g</button>
+        <span class="gval">${g}g</span>
+        <button class="gplus">+10g</button>
+      </div>
+      <div class="kcal">${Math.round(kcal)}kcal / P${fmt1(p)} F${fmt1(f)} C${fmt1(c)}</div>
+      <button class="gadd">ログに追加</button>
+    `;
+    card.querySelector('.gminus').onclick = () => {
+      gramState[item.id] = Math.max(10, gramState[item.id]-10);
+      renderGramItems();
+    };
+    card.querySelector('.gplus').onclick = () => {
+      gramState[item.id] = gramState[item.id]+10;
+      renderGramItems();
+    };
+    card.querySelector('.gadd').onclick = () => {
+      const gg = gramState[item.id];
+      addEntry({
+        name: `${item.name}(${gg}g)`,
+        kcal: item.per100.kcal*gg/100,
+        p: item.per100.p*gg/100,
+        f: item.per100.f*gg/100,
+        c: item.per100.c*gg/100,
+        ts: Date.now()
+      });
+    };
+    grid.appendChild(card);
+  });
+}
 
 function renderPresets(){
   const grid = document.getElementById('presetGrid');
@@ -746,6 +822,7 @@ document.getElementById('exportWeightCsv').onclick = () => {
   document.getElementById('wDate').value = todayStr();
   await loadAll();
   renderPresets();
+  renderGramItems();
   renderSettings();
   renderToday();
   renderHistory();
