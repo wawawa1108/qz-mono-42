@@ -325,11 +325,11 @@
 
 <script>
 const PRESETS = [
-  { id:'natto-tama-soboro', name:'納豆卵そぼろ定食',           kcal:784, p:47.9, f:32.6, c:69.5 },
-  { id:'ajitama-soboro',    name:'味玉そぼろ定食',             kcal:569, p:30.4, f:19.8, c:64.1 },
-  { id:'soboro-teishoku',   name:'鶏そぼろ定食',              kcal:479, p:23.0, f:13.6, c:63.1 },
-  { id:'tori-mame-tomato',  name:'鶏と豆のトマト煮込み定食',    kcal:497, p:22.0, f:11.0, c:75.6 },
-  { id:'tori-mame-tama',    name:'鶏と豆のトマト煮込み定食(卵2個)', kcal:702, p:38.7, f:25.0, c:76.0 },
+  { id:'natto-tama-soboro', name:'納豆卵そぼろ定食',           kcal:790, p:47.9, f:33.3, c:69.5 },
+  { id:'ajitama-soboro',    name:'味玉そぼろ定食',             kcal:575, p:30.4, f:20.5, c:64.1 },
+  { id:'soboro-teishoku',   name:'鶏そぼろ定食',              kcal:485, p:23.0, f:14.3, c:63.1 },
+  { id:'tori-mame-tomato',  name:'鶏と豆のトマト煮込み定食',    kcal:502, p:22.0, f:11.6, c:75.6 },
+  { id:'tori-mame-tama',    name:'鶏と豆のトマト煮込み定食(卵2個)', kcal:707, p:38.7, f:25.6, c:76.0 },
   { id:'kashipan',          name:'菓子パン',                 kcal:400, p:7.0,  f:15.0, c:55.0 },
   { id:'protein-rice',      name:'白米・プロテイン',          kcal:447, p:41.6, f:3.0,  c:63.7 },
   { id:'snack',             name:'間食(お菓子)',             kcal:200, p:2.0,  f:8.0,  c:30.0 },
@@ -340,8 +340,8 @@ const PRESETS = [
 
 // 量を10g単位で調整できるおかず(100gあたりの栄養価)
 const GRAM_ITEMS = [
-  { id:'soboro-okazu', name:'鶏そぼろ',           base:80,  per100:{kcal:244.5, p:22.8, f:15.6, c:0.63} },
-  { id:'tomato-okazu', name:'鶏と豆のトマト煮込み', base:180, per100:{kcal:118.8, p:9.54, f:5.53, c:7.21} },
+  { id:'soboro-okazu', name:'鶏そぼろ',           base:80,  per100:{kcal:252.7, p:22.8, f:16.5, c:0.63} },
+  { id:'tomato-okazu', name:'鶏と豆のトマト煮込み', base:180, per100:{kcal:121.5, p:9.54, f:5.84, c:7.21} },
   { id:'kinpira-okazu', name:'きんぴらごぼう',      base:30,  per100:{kcal:86.7,  p:2.16, f:1.96, c:12.84} },
 ];
 
@@ -827,6 +827,28 @@ document.getElementById('exportWeightCsv').onclick = () => {
   renderToday();
   renderHistory();
   renderWeightView();
+
+  // 日付が変わったら自動で当日分に切り替える
+  let lastCheckedDate = todayStr();
+  async function checkDateRollover(){
+    const nowDate = todayStr();
+    if(nowDate === lastCheckedDate) return;
+    lastCheckedDate = nowDate;
+    let saved = null;
+    try{ const v = localStorage.getItem('day-flags-' + nowDate); if(v) saved = JSON.parse(v); }catch(e){}
+    if(saved){
+      loc = saved.loc; train = saved.train;
+    } else {
+      const wd = new Date().getDay();
+      loc = WEEKLY_SCHEDULE[wd].loc; train = WEEKLY_SCHEDULE[wd].train;
+    }
+    document.getElementById('wDate').value = nowDate;
+    renderToday();
+    renderHistory();
+  }
+  setInterval(checkDateRollover, 30000);
+  document.addEventListener('visibilitychange', () => { if(!document.hidden) checkDateRollover(); });
+  window.addEventListener('focus', checkDateRollover);
 })();
 </script>
 </body>
