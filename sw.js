@@ -1,4 +1,4 @@
-const CACHE_NAME = 'bulk-tracker-v2';
+const CACHE_NAME = 'bulk-tracker-v3';
 const ASSETS = ['./bulk-nutrition-tracker-pwa.html', './manifest.json'];
 
 self.addEventListener('install', (event) => {
@@ -16,11 +16,11 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// ネットワーク優先: 常に最新を取りに行き、取得できた分をキャッシュに保存。
-// オフラインなど取得失敗時のみ、保存済みキャッシュを使う。
+// ネットワーク優先、かつブラウザのHTTPキャッシュも無視して常に最新を取得。
+// 取得できない(オフライン)時だけ、保存済みキャッシュにフォールバックする。
 self.addEventListener('fetch', (event) => {
   event.respondWith(
-    fetch(event.request).then((res) => {
+    fetch(event.request, { cache: 'no-store' }).then((res) => {
       const resClone = res.clone();
       caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone)).catch(()=>{});
       return res;
