@@ -322,6 +322,13 @@
       <button id="exportWeightCsv" style="background:var(--energy); border:none; color:#1b1d1e; font-family:'Oswald'; font-weight:600; border-radius:8px; padding:13px; min-height:46px; cursor:pointer; font-size:14px;">体重ログCSV</button>
     </div>
     <div class="note">JSONは全データ(設定・食事ログ・体重ログ)をまとめて出力します。CSVは表計算ソフトやClaude Codeでの分析に使いやすい形式です。</div>
+
+    <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
+      <h2 style="margin-bottom:10px;">バックアップから復元</h2>
+      <input type="file" id="importJsonFile" accept="application/json" style="display:none;">
+      <button id="importJsonBtn" style="width:100%; background:var(--panel2); border:1px solid var(--over); color:var(--over); font-family:'Oswald'; font-weight:600; border-radius:8px; padding:13px; min-height:46px; cursor:pointer; font-size:14px;">JSONファイルから復元</button>
+      <div class="note">「JSONで全データ出力」で保存したファイルを選ぶと、体重・食事ログ・目標設定などを復元します。<strong>現在のデータは上書きされます。</strong></div>
+    </div>
   </div>
 
 </div>
@@ -816,6 +823,38 @@ document.getElementById('exportWeightCsv').onclick = () => {
   const combined = [...MONTHLY_WEIGHT, ...weightLog].sort((a,b)=>a.date.localeCompare(b.date));
   const rows = [['date','kg'], ...combined.map(p=>[p.date, p.kg])];
   downloadFile('weight-log-' + todayStr() + '.csv', rows.map(r=>r.join(',')).join('\n'), 'text/csv');
+};
+
+document.getElementById('importJsonBtn').onclick = () => {
+  document.getElementById('importJsonFile').click();
+};
+
+document.getElementById('importJsonFile').onchange = async (ev) => {
+  const file = ev.target.files[0];
+  if(!file) return;
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if(!confirm('現在のデータを、このファイルの内容で上書きします。よろしいですか?')){
+      ev.target.value = '';
+      return;
+    }
+    if(data.config) config = data.config;
+    if(data.mealLog) mealLog = data.mealLog;
+    if(data.weightLog) weightLog = data.weightLog;
+    if(data.customPresets) customPresets = data.customPresets;
+    if(data.deletedPresetIds) deletedPresetIds = data.deletedPresetIds;
+    await saveConfig();
+    await saveMealLog();
+    await saveWeightLog();
+    await saveCustomPresets();
+    await saveDeletedPresets();
+    alert('復元しました。');
+    location.reload();
+  } catch(e){
+    alert('ファイルの読み込みに失敗しました。正しいJSONファイルか確認してください。');
+  }
+  ev.target.value = '';
 };
 
 (async function init(){
