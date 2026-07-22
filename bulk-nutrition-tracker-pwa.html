@@ -335,11 +335,11 @@
 
 <script>
 const PRESETS = [
-  { id:'natto-tama-soboro', name:'納豆卵そぼろ定食',           kcal:790, p:47.9, f:33.3, c:69.5 },
-  { id:'ajitama-soboro',    name:'味玉そぼろ定食',             kcal:575, p:30.4, f:20.5, c:64.1 },
-  { id:'soboro-teishoku',   name:'鶏そぼろ定食',              kcal:485, p:23.0, f:14.3, c:63.1 },
-  { id:'tori-mame-tomato',  name:'鶏と豆のトマト煮込み定食',    kcal:502, p:22.0, f:11.6, c:75.6 },
-  { id:'tori-mame-tama',    name:'鶏と豆のトマト煮込み定食(卵2個)', kcal:707, p:38.7, f:25.6, c:76.0 },
+  { id:'natto-tama-soboro', name:'納豆卵そぼろ定食',           kcal:775, p:47.9, f:33.3, c:69.6 },
+  { id:'ajitama-soboro',    name:'味玉そぼろ定食',             kcal:560, p:30.3, f:20.5, c:64.1 },
+  { id:'soboro-teishoku',   name:'鶏そぼろ定食',              kcal:470, p:23.0, f:14.3, c:63.1 },
+  { id:'tori-mame-tomato',  name:'鶏と豆のトマト煮込み定食',    kcal:518, p:24.8, f:13.5, c:75.6 },
+  { id:'tori-mame-tama',    name:'鶏と豆のトマト煮込み定食(卵2個)', kcal:723, p:41.5, f:27.5, c:76.0 },
   { id:'kashipan',          name:'菓子パン',                 kcal:400, p:7.0,  f:15.0, c:55.0 },
   { id:'protein-rice',      name:'白米・プロテイン',          kcal:447, p:41.6, f:3.0,  c:63.7 },
   { id:'snack',             name:'間食(お菓子)',             kcal:200, p:2.0,  f:8.0,  c:30.0 },
@@ -350,8 +350,8 @@ const PRESETS = [
 
 // 量を10g単位で調整できるおかず(100gあたりの栄養価)
 const GRAM_ITEMS = [
-  { id:'soboro-okazu', name:'鶏そぼろ',           base:80,  per100:{kcal:252.7, p:22.8, f:16.5, c:0.63} },
-  { id:'tomato-okazu', name:'鶏と豆のトマト煮込み', base:180, per100:{kcal:121.5, p:9.54, f:5.84, c:7.21} },
+  { id:'soboro-okazu', name:'鶏そぼろ',           base:80,  per100:{kcal:233.3, p:22.8, f:16.5, c:0.6} },
+  { id:'tomato-okazu', name:'鶏と豆のトマト煮込み', base:200, per100:{kcal:117.7, p:10.0, f:6.2, c:6.5} },
   { id:'kinpira-okazu', name:'きんぴらごぼう',      base:30,  per100:{kcal:86.7,  p:2.16, f:1.96, c:12.84} },
 ];
 
@@ -388,7 +388,13 @@ let deletedPresetIds = [];
 let loc = 'home';
 let train = false;
 
-const todayStr = () => new Date().toISOString().slice(0,10);
+const todayStr = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+};
 const fmt1 = n => Math.round(n*10)/10;
 const configKey = () => (loc==='home' ? 'home' : 'work') + (train ? 'Train' : 'Rest');
 
@@ -642,9 +648,13 @@ function renderWeightView(){
     ? '最新: ' + combined[combined.length-1].kg + 'kg (' + combined[combined.length-1].date + ')' : '';
 
   if(weightViewMode === 'week'){
+    const localDateStr = (d) => {
+      const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${day}`;
+    };
     const days = [...Array(7)].map((_,i)=>{
       const d = new Date(); d.setDate(d.getDate() - (6-i));
-      return d.toISOString().slice(0,10);
+      return localDateStr(d);
     });
     const pts = days.map(d => ({date:d, kg: (weightLog.find(w=>w.date===d)||{}).kg }));
     const present = pts.filter(p=>p.kg!=null);
@@ -812,7 +822,7 @@ document.getElementById('exportMealCsv').onclick = () => {
   const rows = [['date','time','name','kcal','protein_g','fat_g','carb_g']];
   Object.keys(mealLog).sort().forEach(d=>{
     mealLog[d].forEach(e=>{
-      const t = new Date(e.ts).toISOString().slice(11,16);
+      const t = new Date(e.ts).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',hour12:false});
       rows.push([d, t, '"'+e.name.replace(/"/g,'""')+'"', e.kcal, e.p, e.f, e.c]);
     });
   });
