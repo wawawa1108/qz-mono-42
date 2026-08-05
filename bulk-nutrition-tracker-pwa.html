@@ -204,7 +204,11 @@
   </div>
 
   <div class="panel">
-    <h2>作り置き・定番メニューから追加 <small>タップで今日のログに追加</small></h2>
+    <h2>作り置き・定番メニューから追加 <small>タップでログに追加</small></h2>
+    <div class="weight-form" style="margin-bottom:14px;">
+      <input type="date" id="logDate" style="grid-column:1/-1;">
+    </div>
+    <div class="note" id="logDateNote" style="margin-top:-8px; margin-bottom:12px;"></div>
     <div class="preset-grid" id="presetGrid"></div>
 
     <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--line);">
@@ -498,13 +502,16 @@ function renderPresets(){
   });
 }
 
+let logDate = null;
+
 function addEntry(item){
-  const d = todayStr();
+  const d = logDate || todayStr();
   if(!mealLog[d]) mealLog[d] = [];
   mealLog[d].push({ id: 'e'+Date.now()+Math.random().toString(16).slice(2), name:item.name, kcal:item.kcal, p:item.p, f:item.f, c:item.c, ts:Date.now() });
   saveMealLog();
-  renderToday();
+  if(d === todayStr()) renderToday();
   renderHistory();
+  updateLogDateNote();
 }
 
 function removeEntry(id){
@@ -706,13 +713,18 @@ function renderWeightView(){
     if(months.length===0){ area.innerHTML = '<div class="empty">記録がありません。</div>'; return; }
     const kgs = months.map(m=>monthly[m]);
     const minKg = Math.min(...kgs)-0.5, maxKg = Math.max(...kgs)+0.5;
-    const W=340,H=170,padL=34,padR=8,padT=14,padB=22;
+    const W=340,H=190,padL=34,padR=8,padT=24,padB=22;
     const x = i => padL + (W-padL-padR) * (i/((months.length-1)||1));
     const y = kg => padT + (H-padT-padB) * (1-(kg-minKg)/(maxKg-minKg||1));
     let path = 'M ' + months.map((m,i)=>`${x(i).toFixed(1)} ${y(monthly[m]).toFixed(1)}`).join(' L ');
-    let dots = months.map((m,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(monthly[m]).toFixed(1)}" r="3.5" fill="#e07b34"/><text x="${x(i)}" y="${H-4}" font-size="10" fill="#8d9294" text-anchor="middle">${m.slice(5)}</text>`).join('');
-    let lastLabel = `<text x="${x(months.length-1)-10}" y="${y(monthly[months[months.length-1]])-10}" font-size="11" fill="#ece8e1" text-anchor="end">${monthly[months[months.length-1]].toFixed(1)}kg</text>`;
-    area.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%; height:170px;"><path d="${path}" fill="none" stroke="#e07b34" stroke-width="2"/>${dots}${lastLabel}</svg>`;
+    let dots = months.map((m,i)=>{
+      const anchor = i===0 ? 'start' : (i===months.length-1 ? 'end' : 'middle');
+      const lx = i===0 ? x(i)+4 : (i===months.length-1 ? x(i)-4 : x(i));
+      return `<circle cx="${x(i).toFixed(1)}" cy="${y(monthly[m]).toFixed(1)}" r="3.5" fill="#e07b34"/>`
+        + `<text x="${lx.toFixed(1)}" y="${(y(monthly[m])-9).toFixed(1)}" font-size="10" fill="#ece8e1" text-anchor="${anchor}">${monthly[m].toFixed(1)}</text>`
+        + `<text x="${x(i)}" y="${H-4}" font-size="10" fill="#8d9294" text-anchor="middle">${m.slice(5)}</text>`;
+    }).join('');
+    area.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%; height:190px;"><path d="${path}" fill="none" stroke="#e07b34" stroke-width="2"/>${dots}</svg>`;
   }
 }
 
@@ -733,6 +745,21 @@ function renderSettings(){
   document.getElementById('tgtWorkTrainKcal').value = config.workTrain.kcal;
   document.getElementById('tgtWorkTrainP').value = config.workTrain.p;
 }
+
+function updateLogDateNote(){
+  const note = document.getElementById('logDateNote');
+  if(logDate === todayStr()){
+    note.textContent = '';
+  } else {
+    const count = (mealLog[logDate]||[]).length;
+    note.textContent = `${logDate} に記録中です(${count}件)。今日の分に戻すには上の日付を今日に変更してください。`;
+  }
+}
+
+document.getElementById('logDate').onchange = (ev) => {
+  logDate = ev.target.value || todayStr();
+  updateLogDateNote();
+};
 
 document.getElementById('btnHome').onclick = () => { loc='home'; saveDayFlags(); renderToday(); };
 document.getElementById('btnWork').onclick = () => { loc='work'; saveDayFlags(); renderToday(); };
@@ -872,12 +899,15 @@ document.getElementById('importJsonFile').onchange = async (ev) => {
     try{ await navigator.serviceWorker.register('sw.js'); }catch(e){ /* file://で開いている場合は登録できないことがあります */ }
   }
   document.getElementById('wDate').value = todayStr();
+  logDate = todayStr();
+  document.getElementById('logDate').value = logDate;
   await loadAll();
   renderPresets();
   renderGramItems();
   renderSettings();
   renderToday();
   renderHistory();
+  updateLogDateNote();
   renderWeightView();
 
   // 日付が変わったら自動で当日分に切り替える
@@ -885,6 +915,7 @@ document.getElementById('importJsonFile').onchange = async (ev) => {
   async function checkDateRollover(){
     const nowDate = todayStr();
     if(nowDate === lastCheckedDate) return;
+    const wasOnToday = (logDate === lastCheckedDate);
     lastCheckedDate = nowDate;
     let saved = null;
     try{ const v = localStorage.getItem('day-flags-' + nowDate); if(v) saved = JSON.parse(v); }catch(e){}
@@ -895,6 +926,11 @@ document.getElementById('importJsonFile').onchange = async (ev) => {
       loc = WEEKLY_SCHEDULE[wd].loc; train = WEEKLY_SCHEDULE[wd].train;
     }
     document.getElementById('wDate').value = nowDate;
+    if(wasOnToday){
+      logDate = nowDate;
+      document.getElementById('logDate').value = logDate;
+      updateLogDateNote();
+    }
     renderToday();
     renderHistory();
   }
