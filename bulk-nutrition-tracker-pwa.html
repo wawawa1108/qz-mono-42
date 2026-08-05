@@ -250,7 +250,7 @@
   </div>
 
   <div class="panel">
-    <h2>今日のログ</h2>
+    <h2 id="todayLogHeading">今日のログ</h2>
     <ul class="log-list" id="todayLog"></ul>
   </div>
 
@@ -510,16 +510,18 @@ function addEntry(item){
   mealLog[d].push({ id: 'e'+Date.now()+Math.random().toString(16).slice(2), name:item.name, kcal:item.kcal, p:item.p, f:item.f, c:item.c, ts:Date.now() });
   saveMealLog();
   if(d === todayStr()) renderToday();
+  renderLogList();
   renderHistory();
   updateLogDateNote();
 }
 
 function removeEntry(id){
-  const d = todayStr();
+  const d = logDate || todayStr();
   if(!mealLog[d]) return;
   mealLog[d] = mealLog[d].filter(e=>e.id!==id);
   saveMealLog();
-  renderToday();
+  if(d === todayStr()) renderToday();
+  renderLogList();
   renderHistory();
 }
 
@@ -565,9 +567,13 @@ function renderToday(){
     <div style="width:${pKcal/sumKcal*100}%; background:var(--protein)"></div>
     <div style="width:${fKcal/sumKcal*100}%; background:var(--fat)"></div>
     <div style="width:${cKcal/sumKcal*100}%; background:var(--carb)"></div>`;
+}
 
+function renderLogList(){
+  const d = logDate || todayStr();
+  document.getElementById('todayLogHeading').textContent = (d === todayStr() ? '今日のログ' : d + ' のログ');
   const list = document.getElementById('todayLog');
-  const items = mealLog[todayStr()] || [];
+  const items = mealLog[d] || [];
   if(items.length===0){
     list.innerHTML = '<div class="empty">まだ記録がありません。上のメニューから追加してください。</div>';
   } else {
@@ -758,6 +764,7 @@ function updateLogDateNote(){
 
 document.getElementById('logDate').onchange = (ev) => {
   logDate = ev.target.value || todayStr();
+  renderLogList();
   updateLogDateNote();
 };
 
@@ -906,6 +913,7 @@ document.getElementById('importJsonFile').onchange = async (ev) => {
   renderGramItems();
   renderSettings();
   renderToday();
+  renderLogList();
   renderHistory();
   updateLogDateNote();
   renderWeightView();
@@ -932,6 +940,7 @@ document.getElementById('importJsonFile').onchange = async (ev) => {
       updateLogDateNote();
     }
     renderToday();
+    renderLogList();
     renderHistory();
   }
   setInterval(checkDateRollover, 30000);
