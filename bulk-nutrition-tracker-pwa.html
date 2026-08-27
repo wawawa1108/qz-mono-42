@@ -408,19 +408,12 @@ async function loadAll(){
   try{ const v = localStorage.getItem('weight-log'); if(v) weightLog = JSON.parse(v); }catch(e){}
   try{ const v = localStorage.getItem('custom-presets'); if(v) customPresets = JSON.parse(v); }catch(e){}
   try{ const v = localStorage.getItem('deleted-presets'); if(v) deletedPresetIds = JSON.parse(v); }catch(e){}
-  let saved = null;
-  try{ const v = localStorage.getItem('day-flags-' + todayStr()); if(v) saved = JSON.parse(v); }catch(e){}
-  if(saved){
-    loc = saved.loc; train = saved.train;
-  } else {
-    const wd = new Date().getDay();
-    loc = WEEKLY_SCHEDULE[wd].loc; train = WEEKLY_SCHEDULE[wd].train;
-  }
+  loadFlagsForDate(todayStr());
 }
 async function saveConfig(){ try{ localStorage.setItem('config', JSON.stringify(config)); }catch(e){} }
 async function saveMealLog(){ try{ localStorage.setItem('meal-log', JSON.stringify(mealLog)); }catch(e){} }
 async function saveWeightLog(){ try{ localStorage.setItem('weight-log', JSON.stringify(weightLog)); }catch(e){} }
-async function saveDayFlags(){ try{ localStorage.setItem('day-flags-' + todayStr(), JSON.stringify({loc, train})); }catch(e){} }
+async function saveDayFlags(){ try{ localStorage.setItem('day-flags-' + (logDate || todayStr()), JSON.stringify({loc, train})); }catch(e){} }
 async function saveCustomPresets(){ try{ localStorage.setItem('custom-presets', JSON.stringify(customPresets)); }catch(e){} }
 async function saveDeletedPresets(){ try{ localStorage.setItem('deleted-presets', JSON.stringify(deletedPresetIds)); }catch(e){} }
 
@@ -526,7 +519,7 @@ function removeEntry(id){
 }
 
 function todaysTotals(){
-  const d = todayStr();
+  const d = logDate || todayStr();
   const items = mealLog[d] || [];
   return items.reduce((acc,e)=>({
     kcal: acc.kcal + Number(e.kcal||0),
@@ -537,8 +530,9 @@ function todaysTotals(){
 }
 
 function renderToday(){
+  const d = logDate || todayStr();
   const label = (loc==='home'?'在宅':'出社') + '・' + (train?'トレあり':'トレなし');
-  document.getElementById('todayLabel').textContent = todayStr() + '(' + label + ')';
+  document.getElementById('todayLabel').textContent = d + '(' + label + ')';
   document.getElementById('btnHome').classList.toggle('active', loc==='home');
   document.getElementById('btnWork').classList.toggle('active', loc==='work');
   document.getElementById('btnRest').classList.toggle('active', !train);
@@ -762,8 +756,21 @@ function updateLogDateNote(){
   }
 }
 
+function loadFlagsForDate(date){
+  let saved = null;
+  try{ const v = localStorage.getItem('day-flags-' + date); if(v) saved = JSON.parse(v); }catch(e){}
+  if(saved){
+    loc = saved.loc; train = saved.train;
+  } else {
+    const wd = new Date(date + 'T00:00:00').getDay();
+    loc = WEEKLY_SCHEDULE[wd].loc; train = WEEKLY_SCHEDULE[wd].train;
+  }
+}
+
 document.getElementById('logDate').onchange = (ev) => {
   logDate = ev.target.value || todayStr();
+  loadFlagsForDate(logDate);
+  renderToday();
   renderLogList();
   updateLogDateNote();
 };
@@ -925,18 +932,11 @@ document.getElementById('importJsonFile').onchange = async (ev) => {
     if(nowDate === lastCheckedDate) return;
     const wasOnToday = (logDate === lastCheckedDate);
     lastCheckedDate = nowDate;
-    let saved = null;
-    try{ const v = localStorage.getItem('day-flags-' + nowDate); if(v) saved = JSON.parse(v); }catch(e){}
-    if(saved){
-      loc = saved.loc; train = saved.train;
-    } else {
-      const wd = new Date().getDay();
-      loc = WEEKLY_SCHEDULE[wd].loc; train = WEEKLY_SCHEDULE[wd].train;
-    }
     document.getElementById('wDate').value = nowDate;
     if(wasOnToday){
       logDate = nowDate;
       document.getElementById('logDate').value = logDate;
+      loadFlagsForDate(logDate);
       updateLogDateNote();
     }
     renderToday();
